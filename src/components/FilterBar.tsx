@@ -49,9 +49,7 @@ export default function FilterBar({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="hidden text-xs uppercase tracking-[0.25em] text-gray-400 lg:inline">
-              Layout
-            </span>
+            
             <div className="flex items-center gap-1 rounded-2xl border border-gray-200 bg-white p-1">
               <button
                 onClick={() => onGridColsChange(3)}

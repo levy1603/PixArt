@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Heart, Bookmark, Eye, Layers, ArrowUpRight } from 'lucide-react';
+﻿import { useState } from 'react';
+import { Heart, Bookmark, Layers, ArrowUpRight } from 'lucide-react';
 import { Post } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import HoverAvatar from './HoverAvatar';
@@ -9,6 +9,7 @@ interface PostCardProps {
   onLike: (id: string) => void;
   onBookmark: (id: string) => void;
   onClick: (post: Post) => void;
+  onOpenArtistProfile: (artistId: string) => void;
   index?: number;
 }
 
@@ -18,8 +19,20 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-export default function PostCard({ post, onLike, onBookmark, onClick, index = 0 }: PostCardProps) {
+export default function PostCard({
+  post,
+  onLike,
+  onBookmark,
+  onClick,
+  onOpenArtistProfile,
+  index = 0,
+}: PostCardProps) {
   const [hovered, setHovered] = useState(false);
+
+  const handleOpenArtistProfile = (artistId?: string) => {
+    if (!artistId) return;
+    onOpenArtistProfile(artistId);
+  };
 
   return (
     <motion.article
@@ -83,12 +96,14 @@ export default function PostCard({ post, onLike, onBookmark, onClick, index = 0 
                   alt={post.artist.name}
                   className="h-8 w-8 rounded-full border border-white/30 bg-white/10"
                   profile={{
+                    id: post.artist.id,
                     name: post.artist.name,
                     avatar: post.artist.avatar,
                     role: 'Nghệ sĩ',
                     followers: post.artist.followers,
                     bio: 'Tác giả của tác phẩm này',
                   }}
+                  onAvatarClick={(artistProfile) => handleOpenArtistProfile(artistProfile.id)}
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-white">{post.title}</p>
@@ -109,12 +124,14 @@ export default function PostCard({ post, onLike, onBookmark, onClick, index = 0 
           alt={post.artist.name}
           className="h-9 w-9 rounded-xl bg-gray-100 shrink-0"
           profile={{
+            id: post.artist.id,
             name: post.artist.name,
             avatar: post.artist.avatar,
             role: 'Nghệ sĩ',
             followers: post.artist.followers,
             bio: 'Đang xuất hiện trong bảng feed',
           }}
+          onAvatarClick={(artistProfile) => handleOpenArtistProfile(artistProfile.id)}
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-gray-900">{post.title}</p>

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Search, Bell, Upload, User, Palette, Menu, X } from 'lucide-react';
 
 interface NavbarProps {
@@ -11,8 +11,10 @@ interface NavbarProps {
   onLogoutClick: () => void;
   isAuthenticated: boolean;
   currentUserName?: string;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
+  searchInput: string;
+  onSearchInputChange: (q: string) => void;
+  onSearchSubmit: (q?: string) => void;
+  suggestions: string[];
 }
 
 export default function Navbar({
@@ -25,46 +27,101 @@ export default function Navbar({
   onLogoutClick,
   isAuthenticated,
   currentUserName,
-  searchQuery,
-  onSearchChange,
+  searchInput,
+  onSearchInputChange,
+  onSearchSubmit,
+  suggestions,
 }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchWrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!searchWrapRef.current) return;
+      if (!searchWrapRef.current.contains(event.target as Node)) {
+        setSearchFocused(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handleOutsideClick);
+    return () => window.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const showSuggestions =
+    searchFocused && searchInput.trim().length > 0 && suggestions.length > 0;
+
+  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    onSearchSubmit();
+    setSearchFocused(false);
+  };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
-      <div className="max-w-screen-xl mx-auto px-4 h-16 flex items-center gap-4">
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-md">
+    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/90 shadow-sm backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-screen-xl items-center gap-4 px-4">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 shadow-md">
             <Palette size={16} className="text-white" />
           </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent hidden sm:block">
+          <span className="hidden bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-xl font-bold text-transparent sm:block">
             PixArt
           </span>
         </div>
 
-        <div className="flex-1 max-w-xl relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm tác phẩm, nghệ sĩ, tag..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-gray-100 text-sm text-gray-800 placeholder-gray-400 border border-transparent focus:border-violet-300 focus:bg-white focus:outline-none transition-all"
-          />
+        <div ref={searchWrapRef} className="relative max-w-xl flex-1">
+          <form onSubmit={handleSearch} className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm tác phẩm, nghệ sĩ, tag..."
+              value={searchInput}
+              onFocus={() => setSearchFocused(true)}
+              onChange={(e) => onSearchInputChange(e.target.value)}
+              className="w-full rounded-xl border border-transparent bg-gray-100 py-2 pl-9 pr-20 text-sm text-gray-800 placeholder-gray-400 transition-all focus:border-violet-300 focus:bg-white focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
+            >
+              Tìm
+            </button>
+          </form>
+
+          {showSuggestions && (
+            <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-2xl border border-gray-100 bg-white p-2 shadow-2xl">
+              <p className="px-2 pb-1 text-xs font-semibold text-gray-400">Gợi ý tìm kiếm</p>
+              <div className="max-h-60 overflow-y-auto">
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => {
+                      onSearchInputChange(suggestion);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                  >
+                    <Search size={13} className="text-gray-400" />
+                    <span className="truncate">{suggestion}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        <nav className="hidden md:flex items-center gap-1 text-sm font-medium text-gray-600">
-          <a href="#" className="px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:text-violet-600 transition-colors">Khám phá</a>
-          <a href="#" className="px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:text-violet-600 transition-colors">Theo dõi</a>
-          <a href="#" className="px-3 py-1.5 rounded-lg hover:bg-violet-50 hover:text-violet-600 transition-colors">Xếp hạng</a>
+        <nav className="hidden items-center gap-1 text-sm font-medium text-gray-600 md:flex">
+          <a href="#" className="rounded-lg px-3 py-1.5 transition-colors hover:bg-violet-50 hover:text-violet-600">Khám phá</a>
+          <a href="#" className="rounded-lg px-3 py-1.5 transition-colors hover:bg-violet-50 hover:text-violet-600">Theo dõi</a>
+          <a href="#" className="rounded-lg px-3 py-1.5 transition-colors hover:bg-violet-50 hover:text-violet-600">Xếp hạng</a>
         </nav>
 
-        <div className="flex items-center gap-2 ml-auto sm:ml-0">
+        <div className="ml-auto flex items-center gap-2 sm:ml-0">
           <button
             onClick={onUploadClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-pink-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all"
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-500 to-pink-500 px-3 py-1.5 text-sm font-semibold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg active:scale-95"
           >
             <Upload size={14} />
             <span className="hidden sm:block">Đăng tải</span>
@@ -76,24 +133,26 @@ export default function Navbar({
                 setNotifOpen(!notifOpen);
                 setProfileOpen(false);
               }}
-              className="relative w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 transition-colors hover:bg-gray-200"
             >
               <Bell size={16} className="text-gray-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 border-2 border-white" />
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-rose-500" />
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-11 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 z-50">
-                <p className="text-xs font-semibold text-gray-500 mb-2 px-1">Thông báo</p>
+              <div className="absolute right-0 top-11 z-50 w-72 rounded-2xl border border-gray-100 bg-white p-3 shadow-2xl">
+                <p className="mb-2 px-1 text-xs font-semibold text-gray-500">Thông báo</p>
                 {[
                   { text: 'AkiraStudio vừa đăng tác phẩm mới', time: '2 phút trước', dot: 'bg-violet-500' },
                   { text: 'LunaCanvas đã thích tranh của bạn', time: '15 phút trước', dot: 'bg-pink-500' },
                   { text: 'Bạn có người theo dõi mới', time: '1 giờ trước', dot: 'bg-emerald-500' },
                 ].map((n, i) => (
-                  <div key={i} className="flex items-start gap-2.5 p-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
-                    <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.dot}`} />
-                    <div>
-                      <p className="text-sm text-gray-700">{n.text}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{n.time}</p>
+                  <div key={i} className="cursor-pointer rounded-xl p-2 transition-colors hover:bg-gray-50">
+                    <div className="flex items-start gap-2.5">
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.dot}`} />
+                      <div>
+                        <p className="text-sm text-gray-700">{n.text}</p>
+                        <p className="mt-0.5 text-xs text-gray-400">{n.time}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -107,18 +166,18 @@ export default function Navbar({
                 setProfileOpen(!profileOpen);
                 setNotifOpen(false);
               }}
-              className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-100 to-pink-100 hover:from-violet-200 hover:to-pink-200 flex items-center justify-center transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-pink-100 transition-colors hover:from-violet-200 hover:to-pink-200"
             >
               <User size={16} className="text-violet-600" />
             </button>
             {profileOpen && (
-              <div className="absolute right-0 top-11 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 p-2 z-50">
+              <div className="absolute right-0 top-11 z-50 w-48 rounded-2xl border border-gray-100 bg-white p-2 shadow-2xl">
                 <button
                   onClick={() => {
                     onOpenProfile();
                     setProfileOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   Hồ sơ cá nhân
                 </button>
@@ -128,7 +187,7 @@ export default function Navbar({
                     onOpenMyWorks();
                     setProfileOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   Tác phẩm của tôi
                 </button>
@@ -137,7 +196,7 @@ export default function Navbar({
                     onOpenFavoriteWorks();
                     setProfileOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   Yêu thích
                 </button>
@@ -146,7 +205,7 @@ export default function Navbar({
                     onOpenSettings();
                     setProfileOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   Cài đặt
                 </button>
@@ -156,7 +215,7 @@ export default function Navbar({
                       onLogoutClick();
                       setProfileOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-sm text-rose-500 mt-1 border-t border-gray-100 pt-2 hover:bg-rose-50 transition-colors"
+                    className="mt-1 w-full border-t border-gray-100 px-3 pt-2 text-left text-sm text-rose-500 transition-colors hover:bg-rose-50"
                   >
                     Đăng xuất
                   </button>
@@ -166,7 +225,7 @@ export default function Navbar({
                       onLoginClick();
                       setProfileOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-sm text-violet-600 mt-1 border-t border-gray-100 pt-2 hover:bg-violet-50 transition-colors"
+                    className="mt-1 w-full border-t border-gray-100 px-3 pt-2 text-left text-sm text-violet-600 transition-colors hover:bg-violet-50"
                   >
                     Đăng nhập
                   </button>
@@ -177,7 +236,7 @@ export default function Navbar({
 
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors md:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 transition-colors hover:bg-gray-200 md:hidden"
           >
             {mobileOpen ? <X size={16} /> : <Menu size={16} />}
           </button>
@@ -185,9 +244,9 @@ export default function Navbar({
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 flex gap-2">
+        <div className="flex gap-2 border-t border-gray-100 bg-white px-4 py-3 md:hidden">
           {['Khám phá', 'Theo dõi', 'Xếp hạng'].map((item) => (
-            <a key={item} href="#" className="flex-1 text-center py-2 rounded-xl bg-gray-50 text-sm font-medium text-gray-600 hover:bg-violet-50 hover:text-violet-600 transition-colors">
+            <a key={item} href="#" className="flex-1 rounded-xl bg-gray-50 py-2 text-center text-sm font-medium text-gray-600 transition-colors hover:bg-violet-50 hover:text-violet-600">
               {item}
             </a>
           ))}

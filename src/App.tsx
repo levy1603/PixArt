@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -9,6 +9,7 @@ import PostDetailModal from './components/PostDetailModal';
 import UploadModal from './components/UploadModal';
 import HeroSection from './components/HeroSection';
 import ProfileModal from './components/ProfileModal';
+import AuthorProfileModal from './components/AuthorProfileModal';
 import MyWorksModal from './components/MyWorksModal';
 import FavoriteWorksModal from './components/FavoriteWorksModal';
 import SettingsModal from './components/SettingsModal';
@@ -23,6 +24,7 @@ const PAGE_SIZE = 12;
 
 export default function App() {
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState<FilterCategory>('all');
   const [sort, setSort] = useState<SortType>('newest');
@@ -33,6 +35,7 @@ export default function App() {
   const [myWorksOpen, setMyWorksOpen] = useState(false);
   const [favoriteWorksOpen, setFavoriteWorksOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedAuthorId, setSelectedAuthorId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [splashElapsed, setSplashElapsed] = useState(false);
 
@@ -129,6 +132,12 @@ export default function App() {
   );
 
   const featuredPost = posts.find((post) => post.id === 'p4') || posts[0];
+  const selectedAuthor =
+    posts.find((post) => post.artist.id === selectedAuthorId)?.artist || null;
+  const isSearchPage = searchQuery.trim().length > 0;
+  const isSidebarResultPage =
+    Boolean(selectedTag) || sort === 'popular' || sort === 'following';
+  const isResultPage = isSearchPage || isSidebarResultPage;
   const hasMorePosts = visiblePosts.length < filteredPosts.length;
   const loadingScreenOpen = !splashElapsed || !authInitialized || !postsInitialized;
   const followedCount = posts.filter((post) => post.artist.isFollowing).length;
@@ -186,12 +195,103 @@ export default function App() {
     setSettingsOpen(true);
   };
 
+  const openAuthorProfile = (artistId: string) => {
+    setSelectedPostId(null);
+    setSelectedAuthorId(artistId);
+  };
+
+  const searchSuggestions = useMemo(() => {
+    const q = searchInput.trim().toLowerCase();
+    if (!q) return [];
+
+    const seen = new Set<string>();
+    const suggestions: string[] = [];
+
+    const add = (value: string) => {
+      const normalized = value.trim();
+      if (!normalized) return;
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      suggestions.push(normalized);
+    };
+
+    posts.forEach((post) => {
+      if (post.title.toLowerCase().includes(q)) add(post.title);
+      if (post.artist.name.toLowerCase().includes(q)) add(post.artist.name);
+      post.tags.forEach((tag) => {
+        if (tag.name.toLowerCase().includes(q)) add(`#${tag.name}`);
+      });
+    });
+
+    return suggestions.slice(0, 8);
+  }, [posts, searchInput]);
+
+  const handleSearchSubmit = (rawQuery?: string) => {
+    const nextQuery = (rawQuery ?? searchInput).trim();
+    setSearchInput(nextQuery);
+    setSearchQuery(nextQuery);
+    setSelectedTag(null);
+  };
+
+  const clearSearch = () => {
+    setSearchInput('');
+    setSearchQuery('');
+  };
+
+  const resetToHomeFeed = () => {
+    clearSearch();
+    setSelectedTag(null);
+    setSort('newest');
+  };
+
+  const resultHeader = useMemo(() => {
+    if (isSearchPage) {
+      return {
+        label: 'Trang tìm kiếm',
+        title: `Kết quả tìm kiếm cho "${searchQuery}"`,
+        description: `Tìm thấy ${filteredPosts.length} tác phẩm phù hợp.`,
+      };
+    }
+
+    if (selectedTag) {
+      return {
+        label: 'Trang kết quả',
+        title: `Kết quả theo thẻ #${selectedTag}`,
+        description: `Tìm thấy ${filteredPosts.length} tác phẩm theo thẻ này.`,
+      };
+    }
+
+    if (sort === 'popular') {
+      return {
+        label: 'Trang thịnh hành',
+        title: 'Bảng tác phẩm thịnh hành',
+        description: `Hiện có ${filteredPosts.length} tác phẩm đang nổi bật.`,
+      };
+    }
+
+    if (sort === 'following') {
+      return {
+        label: 'Đang theo dõi',
+        title: 'Bài viết từ tác giả bạn theo dõi',
+        description: `Có ${filteredPosts.length} tác phẩm từ danh sách theo dõi.`,
+      };
+    }
+
+    return {
+      label: 'Trang kết quả',
+      title: 'Kết quả đã lọc',
+      description: `Có ${filteredPosts.length} tác phẩm.`,
+    };
+  }, [filteredPosts.length, isSearchPage, searchQuery, selectedTag, sort]);
+
   const onLogout = async () => {
     await handleLogout();
     setMyWorksOpen(false);
     setFavoriteWorksOpen(false);
     setSettingsOpen(false);
     setProfileOpen(false);
+    setSelectedAuthorId(null);
   };
 
   return (
@@ -214,186 +314,257 @@ export default function App() {
         onLogoutClick={onLogout}
         isAuthenticated={isAuthenticated}
         currentUserName={authUser?.displayName}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        onSearchSubmit={handleSearchSubmit}
+        suggestions={searchSuggestions}
       />
 
       <div className="relative z-10 mx-auto flex h-[calc(100vh-4rem)] w-full max-w-[90rem] items-stretch gap-6 px-4 py-8 lg:px-6">
         <Sidebar
           posts={posts}
           selectedTag={selectedTag}
-          onTagClick={setSelectedTag}
+          onTagClick={(tag) => {
+            setSelectedTag(tag);
+            clearSearch();
+            setSort('newest');
+          }}
           isTrendingActive={sort === 'popular'}
           isFollowingActive={sort === 'following'}
           onOpenPost={(post) => setSelectedPostId(post.id)}
           onTrendingClick={() => {
             setSort('popular');
-            setSearchQuery('');
+            clearSearch();
             setSelectedTag(null);
           }}
           onFollowingClick={() => {
             setSort('following');
-            setSearchQuery('');
+            clearSearch();
             setSelectedTag(null);
           }}
+          onOpenArtistProfile={openAuthorProfile}
         />
 
         <main className="no-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto pb-10 pr-2">
-          <motion.section
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
-            className="mb-8 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]"
-          >
-            <div className="rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-              <div className="max-w-3xl">
-                <div className="max-w-2xl">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    Live curation
-                  </div>
-                  <h2 className="font-display mt-3 text-2xl font-black tracking-tight text-gray-950 sm:text-3xl">
-                    Home được thiết kế như một gallery cá nhân hóa.
-                  </h2>
-                  <p className="mt-2 text-sm leading-7 text-gray-600">
-                    Khám phá tác phẩm theo mood, category và thói quen tương tác. Mỗi khu vực
-                    đều được sắp xếp để người xem đi từ cảm hứng đến hành động.
-                  </p>
-                </div>
-
-              </div>
-            </div>
-
-            <div className="rounded-[2rem] border border-gray-200 bg-gray-950 p-5 text-white shadow-[0_18px_50px_rgba(15,23,42,0.15)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-white/50">Focus now</p>
-                  <h3 className="font-display mt-2 text-lg font-bold">Top vibes in the feed</h3>
-                </div>
-                <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70">
-                  {visiblePosts.length}/{filteredPosts.length}
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {posts.slice(0, 3).map((post) => (
-                  <button
-                    key={post.id}
-                    onClick={() => setSelectedPostId(post.id)}
-                    className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2.5 text-left transition-colors hover:bg-white/10"
-                  >
-                    <img
-                      src={post.imageUrl}
-                      alt={post.title}
-                      className="h-14 w-14 rounded-xl object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-white">{post.title}</p>
-                      <p className="mt-0.5 text-xs text-white/55">{post.artist.name}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.section>
-
-          {!searchQuery && !selectedTag && featuredPost && (
-            <HeroSection featuredPost={featuredPost} onViewPost={(post) => setSelectedPostId(post.id)} />
-          )}
-
-          {(searchQuery || selectedTag) && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 flex items-center gap-3 rounded-2xl border border-violet-100 bg-violet-50 p-4"
-            >
-              <div className="flex-1">
-                {searchQuery && (
-                  <p className="text-sm font-semibold text-violet-800">
-                    Kết quả cho: <span className="text-violet-600">"{searchQuery}"</span>
-                  </p>
-                )}
-                {selectedTag && (
-                  <p className="text-sm font-semibold text-violet-800">
-                    Tag: <span className="text-violet-600">#{selectedTag}</span>
-                  </p>
-                )}
-                <p className="mt-0.5 text-xs text-violet-500">
-                  {filteredPosts.length} tác phẩm được tìm thấy
+          {isResultPage ? (
+            <>
+              <motion.section
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 rounded-3xl border border-violet-100 bg-white/85 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-500">
+                  {resultHeader.label}
                 </p>
-              </div>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedTag(null);
-                }}
-                className="rounded-xl bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-600 transition-colors hover:bg-violet-200"
-              >
-                Xóa bộ lọc
-              </button>
-            </motion.div>
-          )}
+                <h2 className="mt-2 text-2xl font-black text-gray-900">{resultHeader.title}</h2>
+                <p className="mt-1 text-sm text-gray-500">{resultHeader.description}</p>
+                <button
+                  onClick={resetToHomeFeed}
+                  className="mt-4 rounded-xl bg-violet-100 px-3 py-1.5 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-200"
+                >
+                  Quay lại trang Home
+                </button>
+              </motion.section>
 
-          <FilterBar
-            category={category}
-            onCategoryChange={setCategory}
-            sort={sort}
-            onSortChange={setSort}
-            gridCols={gridCols}
-            onGridColsChange={setGridCols}
-            totalCount={filteredPosts.length}
-          />
+              {visiblePosts.length > 0 ? (
+                <motion.div layout className={`grid ${gridClass} gap-5`}>
+                  <AnimatePresence>
+                    {visiblePosts.map((post, index) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onLike={handleLike}
+                        onBookmark={handleBookmark}
+                        onClick={(clickedPost) => setSelectedPostId(clickedPost.id)}
+                        onOpenArtistProfile={openAuthorProfile}
+                        index={index}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center gap-4 py-24"
+                >
+                  <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gray-100 text-3xl">
+                    ?
+                  </div>
+                  <h3 className="font-display text-lg font-bold text-gray-700">
+                    Không tìm thấy kết quả
+                  </h3>
+                  <p className="max-w-xs text-center text-sm text-gray-400">
+                    Thử với từ khóa khác hoặc quay lại trang Home.
+                  </p>
+                </motion.div>
+              )}
 
-          {visiblePosts.length > 0 ? (
-            <motion.div layout className={`grid ${gridClass} gap-5`}>
-              <AnimatePresence>
-                {visiblePosts.map((post, index) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onLike={handleLike}
-                    onBookmark={handleBookmark}
-                    onClick={(clickedPost) => setSelectedPostId(clickedPost.id)}
-                    index={index}
-                  />
-                ))}
-              </AnimatePresence>
-            </motion.div>
+              {hasMorePosts && (
+                <div className="mt-10 flex justify-center">
+                  <button
+                    onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                    className="rounded-2xl border-2 border-violet-200 px-6 py-3 text-sm font-semibold text-violet-600 transition-all hover:border-violet-300 hover:bg-violet-50"
+                  >
+                    Xem thêm kết quả
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center gap-4 py-24"
-            >
-              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gray-100 text-3xl">
-                🎨
-              </div>
-              <h3 className="font-display text-lg font-bold text-gray-700">Không tìm thấy tác phẩm</h3>
-              <p className="max-w-xs text-center text-sm text-gray-400">
-                Thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc hiện tại
-              </p>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedTag(null);
-                  setCategory('all');
-                }}
-                className="rounded-xl bg-violet-100 px-4 py-2 text-sm font-semibold text-violet-600 transition-colors hover:bg-violet-200"
+            <>
+              <motion.section
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45 }}
+                className="mb-8 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]"
               >
-                Xem tất cả
-              </button>
-            </motion.div>
-          )}
+                <div className="rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                  <div className="max-w-3xl">
+                    <div className="max-w-2xl">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        Live curation
+                      </div>
+                      <h2 className="font-display mt-3 text-2xl font-black tracking-tight text-gray-950 sm:text-3xl">
+                        Home được thiết kế như một gallery cá nhân hóa.
+                      </h2>
+                      <p className="mt-2 text-sm leading-7 text-gray-600">
+                        Khám phá tác phẩm theo mood, category và thói quen tương tác.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-          {hasMorePosts && (
-            <div className="mt-10 flex justify-center">
-              <button
-                onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-                className="rounded-2xl border-2 border-violet-200 px-6 py-3 text-sm font-semibold text-violet-600 transition-all hover:border-violet-300 hover:bg-violet-50"
-              >
-                Xem thêm tác phẩm
-              </button>
-            </div>
+                <div className="rounded-[2rem] border border-gray-200 bg-gray-950 p-5 text-white shadow-[0_18px_50px_rgba(15,23,42,0.15)]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.26em] text-white/50">Focus now</p>
+                      <h3 className="font-display mt-2 text-lg font-bold">Top vibes in the feed</h3>
+                    </div>
+                    <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70">
+                      {visiblePosts.length}/{filteredPosts.length}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {posts.slice(0, 3).map((post) => (
+                      <button
+                        key={post.id}
+                        onClick={() => setSelectedPostId(post.id)}
+                        className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2.5 text-left transition-colors hover:bg-white/10"
+                      >
+                        <img
+                          src={post.imageUrl}
+                          alt={post.title}
+                          className="h-14 w-14 rounded-xl object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-white">{post.title}</p>
+                          <p className="mt-0.5 text-xs text-white/55">{post.artist.name}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.section>
+
+              {!selectedTag && featuredPost && (
+                <HeroSection
+                  featuredPost={featuredPost}
+                  onViewPost={(post) => setSelectedPostId(post.id)}
+                  onOpenArtistProfile={openAuthorProfile}
+                />
+              )}
+
+              {selectedTag && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 flex items-center gap-3 rounded-2xl border border-violet-100 bg-violet-50 p-4"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-violet-800">
+                      Tag: <span className="text-violet-600">#{selectedTag}</span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-violet-500">
+                      {filteredPosts.length} tác phẩm được tìm thấy
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedTag(null)}
+                    className="rounded-xl bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-600 transition-colors hover:bg-violet-200"
+                  >
+                    Xóa bộ lọc
+                  </button>
+                </motion.div>
+              )}
+
+              <FilterBar
+                category={category}
+                onCategoryChange={setCategory}
+                sort={sort}
+                onSortChange={setSort}
+                gridCols={gridCols}
+                onGridColsChange={setGridCols}
+                totalCount={filteredPosts.length}
+              />
+
+              {visiblePosts.length > 0 ? (
+                <motion.div layout className={`grid ${gridClass} gap-5`}>
+                  <AnimatePresence>
+                    {visiblePosts.map((post, index) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onLike={handleLike}
+                        onBookmark={handleBookmark}
+                        onClick={(clickedPost) => setSelectedPostId(clickedPost.id)}
+                        onOpenArtistProfile={openAuthorProfile}
+                        index={index}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center gap-4 py-24"
+                >
+                  <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gray-100 text-3xl">
+                    ?
+                  </div>
+                  <h3 className="font-display text-lg font-bold text-gray-700">
+                    Không tìm thấy tác phẩm
+                  </h3>
+                  <p className="max-w-xs text-center text-sm text-gray-400">
+                    Thử tìm kiếm với từ khóa khác hoặc xóa bộ lọc hiện tại.
+                  </p>
+                  <button
+                    onClick={() => {
+                      clearSearch();
+                      setSelectedTag(null);
+                      setCategory('all');
+                    }}
+                    className="rounded-xl bg-violet-100 px-4 py-2 text-sm font-semibold text-violet-600 transition-colors hover:bg-violet-200"
+                  >
+                    Xem tất cả
+                  </button>
+                </motion.div>
+              )}
+
+              {hasMorePosts && (
+                <div className="mt-10 flex justify-center">
+                  <button
+                    onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                    className="rounded-2xl border-2 border-violet-200 px-6 py-3 text-sm font-semibold text-violet-600 transition-all hover:border-violet-300 hover:bg-violet-50"
+                  >
+                    Xem thêm tác phẩm
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </main>
 
@@ -402,7 +573,8 @@ export default function App() {
           onOpenPost={(post) => setSelectedPostId(post.id)}
           onPickTag={(tag) => {
             setSelectedTag(tag);
-            setSearchQuery('');
+            clearSearch();
+            setSort('newest');
           }}
         />
       </div>
@@ -416,6 +588,7 @@ export default function App() {
         onBookmark={handleBookmark}
         onFollowArtist={handleFollowArtist}
         onSelectPost={(post) => setSelectedPostId(post.id)}
+        onOpenArtistProfile={openAuthorProfile}
       />
 
       <UploadModal
@@ -441,6 +614,18 @@ export default function App() {
         posts={posts}
         followers={mockMyFollowers}
         currentUser={authUser}
+      />
+
+      <AuthorProfileModal
+        open={Boolean(selectedAuthorId)}
+        artist={selectedAuthor}
+        posts={posts}
+        onClose={() => setSelectedAuthorId(null)}
+        onOpenPost={(post) => {
+          setSelectedAuthorId(null);
+          setSelectedPostId(post.id);
+        }}
+        onFollowArtist={handleFollowArtist}
       />
 
       <MyWorksModal
@@ -481,3 +666,4 @@ export default function App() {
     </div>
   );
 }
+

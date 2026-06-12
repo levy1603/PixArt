@@ -1,4 +1,4 @@
-import { ArrowRight, Palette, Sparkles, TrendingUp } from 'lucide-react';
+﻿import { ArrowRight, Palette, Sparkles, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Post } from '../types';
 import HoverAvatar from './HoverAvatar';
@@ -6,6 +6,7 @@ import HoverAvatar from './HoverAvatar';
 interface HeroSectionProps {
   featuredPost: Post;
   onViewPost: (post: Post) => void;
+  onOpenArtistProfile: (artistId: string) => void;
 }
 
 function formatNumber(n: number): string {
@@ -14,16 +15,20 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-export default function HeroSection({ featuredPost, onViewPost }: HeroSectionProps) {
+export default function HeroSection({
+  featuredPost,
+  onViewPost,
+  onOpenArtistProfile,
+}: HeroSectionProps) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.55, ease: 'easeOut' }}
-      className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-white/75 backdrop-blur-xl shadow-[0_24px_80px_rgba(139,92,246,0.12)] mb-8"
+      className="relative mb-8 overflow-hidden rounded-[2rem] border border-white/70 bg-white/75 shadow-[0_24px_80px_rgba(139,92,246,0.12)] backdrop-blur-xl"
     >
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-20 -right-10 h-56 w-56 rounded-full bg-pink-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -right-10 -top-20 h-56 w-56 rounded-full bg-pink-200/40 blur-3xl" />
         <div className="absolute -bottom-24 -left-10 h-64 w-64 rounded-full bg-violet-200/50 blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.08),transparent_34%),radial-gradient(circle_at_top_right,rgba(244,114,182,0.08),transparent_30%)]" />
       </div>
@@ -45,9 +50,9 @@ export default function HeroSection({ featuredPost, onViewPost }: HeroSectionPro
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.08 }}
-              className="font-display text-3xl font-black tracking-tight text-gray-950 leading-[0.95] sm:text-5xl"
+              className="font-display text-3xl font-black leading-[0.95] tracking-tight text-gray-950 sm:text-5xl"
             >
-              Một Home cho
+              Một Ngôi nhà cho
               <span className="block bg-gradient-to-r from-violet-600 via-fuchsia-500 to-rose-500 bg-clip-text text-transparent">
                 tác phẩm có câu chuyện.
               </span>
@@ -85,7 +90,7 @@ export default function HeroSection({ featuredPost, onViewPost }: HeroSectionPro
             </motion.div>
           </div>
 
-          <div className="mt-7 grid grid-cols-3 gap-3 max-w-lg">
+          <div className="mt-7 grid max-w-lg grid-cols-3 gap-3">
             {[
               { label: 'Tác phẩm', value: '12k+' },
               { label: 'Artist', value: '1.4k' },
@@ -95,12 +100,13 @@ export default function HeroSection({ featuredPost, onViewPost }: HeroSectionPro
                 key={item.label}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: 0.24 + (item.label === 'Tác phẩm' ? 0 : item.label === 'Artist' ? 0.05 : 0.1) }}
+                transition={{
+                  duration: 0.35,
+                  delay: 0.24 + (item.label === 'Tác phẩm' ? 0 : item.label === 'Artist' ? 0.05 : 0.1),
+                }}
                 className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm"
               >
-                <p className="text-[11px] uppercase tracking-[0.22em] text-gray-400">
-                  {item.label}
-                </p>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-gray-400">{item.label}</p>
                 <p className="font-display mt-1 text-xl font-black text-gray-950">{item.value}</p>
               </motion.div>
             ))}
@@ -130,7 +136,7 @@ export default function HeroSection({ featuredPost, onViewPost }: HeroSectionPro
             />
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-gray-950/35 to-transparent" />
 
-            <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white">
+            <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-6">
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.3em] text-white/70">
                 <TrendingUp size={12} />
                 Featured on home
@@ -142,11 +148,15 @@ export default function HeroSection({ featuredPost, onViewPost }: HeroSectionPro
                   alt={featuredPost.artist.name}
                   className="h-8 w-8 rounded-full border border-white/30 bg-white/10"
                   profile={{
+                    id: featuredPost.artist.id,
                     name: featuredPost.artist.name,
                     avatar: featuredPost.artist.avatar,
                     role: 'Nghệ sĩ nổi bật',
                     followers: featuredPost.artist.followers,
                     bio: 'Được chọn trong khu vực featured',
+                  }}
+                  onAvatarClick={(artistProfile) => {
+                    if (artistProfile.id) onOpenArtistProfile(artistProfile.id);
                   }}
                 />
                 <span>{featuredPost.artist.name}</span>

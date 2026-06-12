@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 
 export interface HoverProfile {
+  id?: string;
   name: string;
   avatar: string;
   role: string;
@@ -23,9 +24,13 @@ interface HoverAvatarProps {
   alt: string;
   className: string;
   delayMs?: number;
+  isFollowing?: boolean;
+  onFollowClick?: (profile: HoverProfile) => void;
+  onAvatarClick?: (profile: HoverProfile) => void;
 }
 
 const DEFAULT_HOVER_DELAY_MS = 300;
+const HOVER_CARD_CLOSE_DELAY_MS = 120;
 
 function formatNumber(n: number): string {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
@@ -39,30 +44,45 @@ export default function HoverAvatar({
   alt,
   className,
   delayMs = DEFAULT_HOVER_DELAY_MS,
+  isFollowing = false,
+  onFollowClick,
+  onAvatarClick,
 }: HoverAvatarProps) {
   const [hoverCard, setHoverCard] = useState<HoverCardState | null>(null);
-  const hoverTimerRef = useRef<number | null>(null);
+  const openTimerRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      if (hoverTimerRef.current) {
-        window.clearTimeout(hoverTimerRef.current);
+      if (openTimerRef.current) {
+        window.clearTimeout(openTimerRef.current);
+      }
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
       }
     };
   }, []);
 
-  const clearAvatarHoverTimer = () => {
-    if (hoverTimerRef.current) {
-      window.clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
+  const clearOpenTimer = () => {
+    if (openTimerRef.current) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
+  };
+
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
     }
   };
 
   const handleAvatarMouseEnter = (e: React.MouseEvent<HTMLImageElement>) => {
-    clearAvatarHoverTimer();
+    clearCloseTimer();
+    clearOpenTimer();
     const target = e.currentTarget;
 
-    hoverTimerRef.current = window.setTimeout(() => {
+    openTimerRef.current = window.setTimeout(() => {
       const rect = target.getBoundingClientRect();
       const popupWidth = 272;
       const gap = 12;
@@ -77,9 +97,27 @@ export default function HoverAvatar({
     }, delayMs);
   };
 
+  const scheduleHideHoverCard = () => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setHoverCard(null);
+    }, HOVER_CARD_CLOSE_DELAY_MS);
+  };
+
   const handleAvatarMouseLeave = () => {
-    clearAvatarHoverTimer();
-    setHoverCard(null);
+    clearOpenTimer();
+    scheduleHideHoverCard();
+  };
+
+  const handleFollowClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onFollowClick?.(profile);
+  };
+
+  const handleAvatarClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    if (!onAvatarClick) return;
+    e.stopPropagation();
+    onAvatarClick(profile);
   };
 
   return (
@@ -87,9 +125,10 @@ export default function HoverAvatar({
       <img
         src={src}
         alt={alt}
-        className={className}
+        className={`${className}${onAvatarClick ? ' cursor-pointer' : ''}`}
         onMouseEnter={handleAvatarMouseEnter}
         onMouseLeave={handleAvatarMouseLeave}
+        onClick={handleAvatarClick}
       />
       {typeof document !== 'undefined' &&
         createPortal(
@@ -100,12 +139,14 @@ export default function HoverAvatar({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.98 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
-                className="pointer-events-none fixed z-[180] w-64"
+                className="pointer-events-auto fixed z-[180] w-64"
                 style={{
                   left: hoverCard.x,
                   top: hoverCard.y,
                   transform: hoverCard.placeLeft ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
                 }}
+                onMouseEnter={clearCloseTimer}
+                onMouseLeave={scheduleHideHoverCard}
               >
                 <div className="rounded-2xl border border-white/70 bg-white/95 p-3 shadow-[0_20px_40px_rgba(15,23,42,0.22)] backdrop-blur-xl">
                   <div className="flex items-center gap-3">
@@ -118,6 +159,13 @@ export default function HoverAvatar({
                       <p className="truncate text-sm font-semibold text-gray-900">{hoverCard.profile.name}</p>
                       <p className="text-xs text-violet-500">{hoverCard.profile.role}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleFollowClick}
+                      className="rounded-full border border-violet-200 px-3 py-1 text-xs font-medium text-violet-600 transition hover:border-violet-300 hover:bg-violet-50"
+                    >
+                      {isFollowing ? 'Da theo doi' : 'Theo doi'}
+                    </button>
                   </div>
                   {typeof hoverCard.profile.followers === 'number' && (
                     <p className="mt-2 text-xs text-gray-500">

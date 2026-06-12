@@ -1,4 +1,4 @@
-import { TrendingUp, Compass, Star, Users, Bookmark, Hash, Flame, Heart } from 'lucide-react';
+﻿import { TrendingUp, Compass, Star, Users, Bookmark, Hash, Flame, Heart } from 'lucide-react';
 import { popularTags } from '../data/mockData';
 import { Post } from '../types';
 import HoverAvatar from './HoverAvatar';
@@ -12,28 +12,33 @@ interface SidebarProps {
   onFollowingClick: () => void;
   isFollowingActive: boolean;
   onOpenPost: (post: Post) => void;
+  onOpenArtistProfile: (artistId: string) => void;
 }
 
 const topArtists = [
   {
+    id: 'a4',
     name: 'NightInkArt',
     followers: '210k',
     avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=NightInkArt&backgroundColor=d1f4e0',
     isFollowing: false,
   },
   {
+    id: 'a1',
     name: 'AkiraStudio',
     followers: '128k',
     avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=AkiraStudio&backgroundColor=b6e3f4',
     isFollowing: true,
   },
   {
+    id: 'a2',
     name: 'LunaCanvas',
     followers: '83k',
     avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=LunaCanvas&backgroundColor=ffdfbf',
     isFollowing: false,
   },
   {
+    id: 'a5',
     name: 'SolarPainter',
     followers: '67k',
     avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=SolarPainter&backgroundColor=ffd5dc',
@@ -56,16 +61,15 @@ export default function Sidebar({
   onFollowingClick,
   isFollowingActive,
   onOpenPost,
+  onOpenArtistProfile,
 }: SidebarProps) {
   const trendingPosts = [...posts].sort((a, b) => b.likes - a.likes).slice(0, 4);
 
   return (
-    <aside className="hidden h-full w-60 shrink-0 self-stretch overflow-y-auto pr-1 lg:block no-scrollbar">
+    <aside className="no-scrollbar hidden h-full w-60 shrink-0 self-stretch overflow-y-auto pr-1 lg:block">
       <div className="space-y-4 pb-8">
         <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-          <p className="px-2 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Menu
-          </p>
+          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Menu</p>
           {[
             { icon: Compass, label: 'Khám phá', active: !isTrendingActive && !isFollowingActive },
             { icon: TrendingUp, label: 'Thịnh hành', active: isTrendingActive, onClick: onTrendingClick },
@@ -89,9 +93,7 @@ export default function Sidebar({
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Flame size={14} className="text-rose-500" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Thịnh hành hôm nay
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Thịnh hành hôm nay</p>
           </div>
           <div className="space-y-2">
             {trendingPosts.map((post, index) => (
@@ -102,7 +104,7 @@ export default function Sidebar({
                 className="flex w-full items-center gap-2.5 rounded-xl border border-gray-100 p-1.5 text-left transition-colors hover:bg-gray-50"
               >
                 <span className="w-4 text-center text-xs font-bold text-gray-300">{index + 1}</span>
-                <img src={post.imageUrl} alt={post.title} className="h-10 w-10 rounded-lg object-cover bg-gray-100" />
+                <img src={post.imageUrl} alt={post.title} className="h-10 w-10 rounded-lg bg-gray-100 object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold text-gray-700">{post.title}</p>
                   <p className="truncate text-[11px] text-gray-400">{post.artist.name}</p>
@@ -119,9 +121,7 @@ export default function Sidebar({
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Hash size={14} className="text-violet-500" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Tags phổ biến
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Tags phổ biến</p>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {popularTags.map((tag) => (
@@ -143,26 +143,25 @@ export default function Sidebar({
         <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Star size={14} className="text-amber-500" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Nghệ sĩ nổi bật
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Nghệ sĩ nổi bật</p>
           </div>
           <div className="space-y-2">
             {topArtists.map((artist, index) => (
-              <div
-                key={artist.name}
-                className="flex items-center gap-2.5 rounded-xl p-1.5 transition-colors hover:bg-gray-50"
-              >
+              <div key={artist.name} className="flex items-center gap-2.5 rounded-xl p-1.5 transition-colors hover:bg-gray-50">
                 <span className="w-4 text-center text-xs font-bold text-gray-300">{index + 1}</span>
                 <HoverAvatar
                   src={artist.avatar}
                   alt={artist.name}
                   className="h-8 w-8 rounded-xl bg-gray-100"
                   profile={{
+                    id: artist.id,
                     name: artist.name,
                     avatar: artist.avatar,
                     role: 'Nghệ sĩ nổi bật',
                     bio: `${artist.followers} người theo dõi`,
+                  }}
+                  onAvatarClick={(artistProfile) => {
+                    if (artistProfile.id) onOpenArtistProfile(artistProfile.id);
                   }}
                 />
                 <div className="min-w-0 flex-1">

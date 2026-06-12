@@ -31,6 +31,7 @@ interface PostDetailModalProps {
   onBookmark: (id: string) => void;
   onFollowArtist: (artistId: string) => void;
   onSelectPost: (post: Post) => void;
+  onOpenArtistProfile: (artistId: string) => void;
 }
 
 interface CommentReply {
@@ -59,6 +60,7 @@ interface ReplyTarget {
 }
 
 interface HoverProfile {
+  id?: string;
   name: string;
   avatar: string;
   role: string;
@@ -78,6 +80,7 @@ interface HoverAvatarProps {
   src: string;
   alt: string;
   className: string;
+  onAvatarClick?: (profile: HoverProfile) => void;
 }
 
 const AVATAR_HOVER_DELAY_MS = 300;
@@ -88,7 +91,7 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-function HoverAvatar({ profile, src, alt, className }: HoverAvatarProps) {
+function HoverAvatar({ profile, src, alt, className, onAvatarClick }: HoverAvatarProps) {
   const [hoverCard, setHoverCard] = useState<HoverCardState | null>(null);
   const hoverTimerRef = useRef<number | null>(null);
 
@@ -129,14 +132,21 @@ function HoverAvatar({ profile, src, alt, className }: HoverAvatarProps) {
     setHoverCard(null);
   };
 
+  const handleAvatarClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    if (!onAvatarClick) return;
+    e.stopPropagation();
+    onAvatarClick(profile);
+  };
+
   return (
     <>
       <img
         src={src}
         alt={alt}
-        className={className}
+        className={`${className}${onAvatarClick ? ' cursor-pointer' : ''}`}
         onMouseEnter={handleAvatarMouseEnter}
         onMouseLeave={handleAvatarMouseLeave}
+        onClick={handleAvatarClick}
       />
       {typeof document !== 'undefined' &&
         createPortal(
@@ -238,6 +248,7 @@ export default function PostDetailModal({
   onBookmark,
   onFollowArtist,
   onSelectPost,
+  onOpenArtistProfile,
 }: PostDetailModalProps) {
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState<CommentItem[]>(COMMENTS);
@@ -600,11 +611,15 @@ export default function PostDetailModal({
                               alt={artist.name}
                               className="h-11 w-11 rounded-2xl bg-gray-100 border border-gray-200"
                               profile={{
+                                id: artist.id,
                                 name: artist.name,
                                 avatar: artist.avatar,
                                 role: 'Nghệ sĩ gợi ý',
                                 followers: artist.followers,
                                 bio: `${artist.matches} tag tương đồng với tác phẩm đang xem`,
+                              }}
+                              onAvatarClick={(artistProfile) => {
+                                if (artistProfile.id) onOpenArtistProfile(artistProfile.id);
                               }}
                             />
                             <div className="min-w-0 flex-1">
@@ -658,11 +673,15 @@ export default function PostDetailModal({
                       alt={post.artist.name}
                       className="h-12 w-12 rounded-2xl bg-gray-100 border border-gray-200"
                       profile={{
+                        id: post.artist.id,
                         name: post.artist.name,
                         avatar: post.artist.avatar,
                         role: 'Nghệ sĩ',
                         followers: post.artist.followers,
                         bio: 'Tác giả của tác phẩm này',
+                      }}
+                      onAvatarClick={(artistProfile) => {
+                        if (artistProfile.id) onOpenArtistProfile(artistProfile.id);
                       }}
                     />
                     <div className="min-w-0 flex-1">
